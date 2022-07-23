@@ -1,0 +1,29 @@
+﻿<Window x:Class="Wallchanger_v2.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Wallchanger_v2"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+    <Border BorderThickness="10">
+        <StackPanel Orientation="Vertical">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="Album 1"></Button>
+                <Button Content="Album 2"></Button>
+                <Button Content="Album 3"></Button>
+                <Button Content="+" Width="23" Height="23"></Button>
+
+            </StackPanel>
+            <Grid Height="330">
+            </Grid>
+
+            <Grid Height="60">
+                <Button Content="Set Wallpaper"></Button>
+                <Button Content="Set Wallpaper"></Button>
+                <Button Content="Set Wallpaper"></Button>
+                <Button Content="Set Wallpaper"></Button>
+            </Grid>
+        </StackPanel>
+    </Border>
+</Window>
