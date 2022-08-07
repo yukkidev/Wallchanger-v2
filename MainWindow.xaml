@@ -1,29 +1,53 @@
-﻿<Window x:Class="Wallchanger_v2.MainWindow"
+﻿<Window
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Wallchanger_v2"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        xmlns:Collections="clr-namespace:System.Collections;assembly=System.Runtime" x:Name="window" x:Class="Wallchanger_v2.MainWindow"
+        mc:Ignorable="d" FontSize="14"
+        Title="WallChanger" Height="550" Width="850"
+        MinHeight="255" MinWidth="385">
+    <Window.Resources>
+        <Cursor x:Key="ButtonCursor1">Hand</Cursor>
+    </Window.Resources>
+
     <Border BorderThickness="10">
-        <StackPanel Orientation="Vertical">
-            <StackPanel Orientation="Horizontal">
-                <Button Content="Album 1"></Button>
-                <Button Content="Album 2"></Button>
-                <Button Content="Album 3"></Button>
-                <Button Content="+" Width="23" Height="23"></Button>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition MinHeight="40" Height="40*"/>
+                <RowDefinition MinHeight="40" Height="419*"/>
+                <RowDefinition MinHeight="40" Height="55*"/>
+            </Grid.RowDefinitions>
 
+            <StackPanel Grid.Row="0" Orientation="Horizontal">
+                <Button x:Name="optionsButton" Content="Options" Margin="5,5,2.5,5" Cursor="{DynamicResource ButtonCursor1}" Click="optionsButton_Click"/>
+                <Button x:Name="addButton" Content=" + " Margin="2.5,5,5,5" Cursor="{DynamicResource ButtonCursor1}" ToolTip="Add new images to WallChanger." Click="addButton_Click"/>
             </StackPanel>
-            <Grid Height="330">
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="151*"/>
+                    <ColumnDefinition Width="5*"/>
+                </Grid.ColumnDefinitions>
+
+                <ScrollViewer Grid.Column="0" Grid.ColumnSpan="2" Background="Gainsboro">
+                    <WrapPanel x:Name="wpContainer" Initialized="wpContainer_Initialized" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <StackPanel x:Name="noImagesPanel">
+                            <Label FontSize="29">No images found</Label>
+                            <Button x:Name="addImagesFromNoImagesPanel" FontSize="28" Click="addImagesFromNoImagesPanel_Click">Add some images</Button>
+                        </StackPanel>
+                    </WrapPanel>
+                </ScrollViewer>
             </Grid>
 
-            <Grid Height="60">
-                <Button Content="Set Wallpaper"></Button>
-                <Button Content="Set Wallpaper"></Button>
-                <Button Content="Set Wallpaper"></Button>
-                <Button Content="Set Wallpaper"></Button>
-            </Grid>
-        </StackPanel>
+            <StackPanel Grid.Row="2"  Orientation="Horizontal" HorizontalAlignment="Center">
+                <ComboBox x:Name="albumsBox" Margin="5,10,5,10" Cursor="{DynamicResource ButtonCursor1}" ToolTip="Change the current displayed album." DataContextChanged="albumsBox_DataContextChanged"/>
+                <Button x:Name="addToAlbumButton" Content="Add to Album" Padding="10,1,10,1" Margin="5,10,5,10" Cursor="{DynamicResource ButtonCursor1}" Click="addToAlbumButton_Click"/>
+                <Button x:Name="favButton" Content="Favorite" Padding="10,1,10,1" Margin="5,10,5,10" Cursor="{DynamicResource ButtonCursor1}" Click="favButton_Click"/>
+                <Button x:Name="randButton" Content="Randomize" Padding="10,1,10,1" Margin="5,10,5,10" Cursor="{DynamicResource ButtonCursor1}" Click="randButton_Click"/>
+                <Button x:Name="setButton" Content="Set Wallpaper" Padding="10,1,10,1" Margin="5,10,5,10" Cursor="{DynamicResource ButtonCursor1}" Click="setButton_Click"/>
+            </StackPanel>
+        </Grid>
     </Border>
 </Window>
