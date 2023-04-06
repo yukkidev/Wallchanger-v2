@@ -12,6 +12,10 @@
     <Window.Resources>
         <Cursor x:Key="ButtonCursor1">Hand</Cursor>
         <!--<ResourceDictionary x:Key="dict" Source="Dictionary1.xaml"/>-->
+
+        <Style TargetType="Image">
+            <Setter Property="RenderOptions.BitmapScalingMode" Value="HighQuality" />
+        </Style>
     </Window.Resources>
 
     <Border x:Name="MainBorder">
@@ -85,21 +89,26 @@
                                     <RowDefinition MinHeight="35" MaxHeight="35"/>
                                     <RowDefinition MinHeight="35" MaxHeight="35"/>
                                     <RowDefinition MinHeight="35" MaxHeight="35"/>
+                                    <RowDefinition MinHeight="35" MaxHeight="35"/>
                                 </Grid.RowDefinitions>
 
                                 <TextBlock Margin="7" Grid.Column="0" Grid.Row="0" Text="Close to tray"/>
                                 <TextBlock Margin="7" Grid.Column="0" Grid.Row="1" Text="Check for updates on startup"/>
                                 <TextBlock Margin="7" Grid.Column="0" Grid.Row="2" Text="Theme"/>
                                 <TextBlock Margin="7" Grid.Column="0" Grid.Row="3" Text="Randomize on start"/>
+                                <TextBlock Margin="7" Grid.Column="0" Grid.Row="4" Text="Randomize from album:"/>
 
-                                <CheckBox Grid.Column="1" Grid.Row="0" Margin="10,0,0,0"/>
-                                <CheckBox Grid.Column="1" Grid.Row="1" Margin="10,0,0,0"/>
-                                <ComboBox Grid.Column="1" Grid.Row="2" Margin="10,0,0,0" SelectedItem="Dark" Name="ThemeSelectionCombo" MaxHeight="30px">
+
+                                <CheckBox Name="closeToTrayCheckBox" Grid.Column="1" Grid.Row="0" Margin="10,0,0,0"/>
+                                <CheckBox Name="checkForUpdatesCheckBox" Grid.Column="1" Grid.Row="1" Margin="10,0,0,0"/>
+                                <ComboBox Name="themeComboBox" Grid.Column="1" Grid.Row="2" Margin="10,0,0,0" SelectedValuePath="Content" MaxHeight="30px">
                                     <ComboBoxItem>Dark</ComboBoxItem>
                                     <ComboBoxItem>Light</ComboBoxItem>
                                 </ComboBox>
-                                <CheckBox Grid.Column="1" Grid.Row="3" Margin="10,0,0,0"/>
-
+                                <CheckBox Name="randomizeOnStartupCheckBox" Grid.Column="1" Grid.Row="3" Margin="10,0,0,0"/>
+                                <ComboBox Name="randomizeFromComboBox" Grid.Column="1" Grid.Row="4" Margin="10,0,0,0" SelectedValuePath="Content" MaxHeight="30px"></ComboBox>
+                                
+                                
 
                             </Grid>
                         </ScrollViewer>

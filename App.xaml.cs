@@ -89,8 +89,6 @@ namespace Wallchanger_v2
         {
             currentIndex = 0;
             selectedButton = sender as Forms.ToolStripButton;
-
-            MessageBox.Show(selectedButton.Text);
                 
             dropDownMenu.Text = "Album: " + selectedButton.Text;
         }

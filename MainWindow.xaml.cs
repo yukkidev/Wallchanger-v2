@@ -16,6 +16,7 @@ using System.Diagnostics;
 using System.Windows.Threading;
 using System.Timers;
 using Xceed.Wpf.Toolkit;
+using ControlzEx.Standard;
 
 //using Wpf.Ui.Controls;
 
@@ -31,13 +32,14 @@ namespace Wallchanger_v2
 
         private static extern Int32 SystemParametersInfo(UInt32 uiAction, UInt32
         uiParam, String pvParam, UInt32 fWinIni);
-        private static UInt32 SPI_SETDESKWALLPAPER = 20;
-        private static UInt32 SPIF_UPDATEINIFILE = 0x1;
+        private static readonly UInt32 SPI_SETDESKWALLPAPER = 20;
+        private static readonly UInt32 SPIF_UPDATEINIFILE = 0x1;
 
         private WPButton? selectedButton;
         private ScrollViewer? currentTab;
         private bool multiSelectMode;
         private bool closed = false;
+        private bool closeToTray;
         private List<WPButton>? selectedButtonsList;
 
         public WPContainer? allTab;
@@ -55,7 +57,6 @@ namespace Wallchanger_v2
             CheckForDependantFilesAndFolders();
 
             LoadSettings();
-
             // dynamically add WPContainers as tabs
             AddWPContainers();
 
@@ -73,13 +74,13 @@ namespace Wallchanger_v2
 
         public void SetWP(string wallpaper)
         {
-            SystemParametersInfo(SPI_SETDESKWALLPAPER, 1, wallpaper, SPIF_UPDATEINIFILE);
+            _ = SystemParametersInfo(SPI_SETDESKWALLPAPER, 1, wallpaper, SPIF_UPDATEINIFILE);
         }
         public int RandomSetWP(List<string> images)
         {
             // random set from images list
 
-            Random random = new Random();
+            Random random = new();
 
             if (images.Count > 0)
             {
@@ -143,6 +144,9 @@ namespace Wallchanger_v2
 
         public Dictionary<string, List<string>> GetJsonFile(string fileName) => JsonConvert.DeserializeObject<Dictionary<string, List<string>>>(File.ReadAllText(fileName));
 
+        public Dictionary<string, string> GetSettingsFile(string fileName) => JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(fileName));
+
+
         public List<string> GetImagesViaPath(string folderName)
         {
             // get all images from path
@@ -170,7 +174,47 @@ namespace Wallchanger_v2
         }
         private void LoadSettings()
         {
-            // using config.ini to load and write settings
+            bool shouldRandomize = false;
+            string randomizeAlbum = "";
+
+            if (File.Exists("prefs.json"))
+            {
+                Dictionary<string, string> prefsJson = GetSettingsFile("prefs.json");
+
+                closeToTrayCheckBox.IsChecked = bool.TryParse(prefsJson["close_to_tray"], out bool closeToTrayValue) ? closeToTrayValue : (bool?)null;
+                checkForUpdatesCheckBox.IsChecked = bool.TryParse(prefsJson["check_for_updates"], out bool checkUpdatesValue) ? checkUpdatesValue : (bool?)null;
+                themeComboBox.SelectedValue = prefsJson["theme"];
+                
+                randomizeOnStartupCheckBox.IsChecked = (bool.TryParse(prefsJson["randomize_on_start"], out bool randomizeValue) ? randomizeValue : (bool?)null);
+                shouldRandomize = (bool)randomizeOnStartupCheckBox.IsChecked;
+                
+                randomizeFromComboBox.SelectedValue = randomizeAlbum = prefsJson["randomize_from_album"];
+            }
+
+            // randomize if should randomize
+            if (shouldRandomize)
+            {
+                if (randomizeAlbum == null || randomizeAlbum == "")
+                {
+                    randomizeAlbum = "All";
+                }
+
+                this.RandomSetWP(GetImagesFromAlbum(randomizeAlbum));
+            }
+
+            // load in albums into randomizeFromComboBox
+            randomizeFromComboBox.Items.Add("All");
+
+            List<string> albumNames = GetAlbumKeysFromJson();
+            
+            foreach (string albumName in albumNames)
+            {
+                ComboBoxItem item = new()
+                {
+                    Content = albumName
+                };
+                randomizeFromComboBox.Items.Add(item);
+            }
 
             // load schedules here and start them
         }
@@ -309,6 +353,12 @@ namespace Wallchanger_v2
             File.WriteAllText(fileName, jsonString);
         }
 
+        private void SaveSettings(string fileName, Dictionary<string, string> settingsDict)
+        {
+            string jsonString = JsonConvert.SerializeObject(settingsDict);
+            File.WriteAllText(fileName, jsonString);
+        }
+
         private void AddButtons(List<string> images, WPPanel panel)
         {
             foreach (string image in images)
@@ -335,7 +385,7 @@ namespace Wallchanger_v2
                     // add menuItemButton events
                     removeImageMenuItem.Click += delegate (object sender, RoutedEventArgs e)
                     {
-                        removeImageMenuItem_Click(sender, e, panel, btn);
+                        removeImageMenuItem_Click(sender, e, btn);
                     };
 
                     deleteImageMenuItem.Click += delegate (object sender, RoutedEventArgs e)
@@ -518,6 +568,18 @@ namespace Wallchanger_v2
                 albumTabs.Items.Add(tab);
             }
 
+            // will add the album to the opened albums file
+            if (headerName!= "Albums" && headerName != "All")
+            {
+
+                List<string> existingValues = File.ReadAllText("opened_albums.txt").Split(',').ToList();
+                if (!existingValues.Contains(headerName))
+                {
+                    File.AppendAllText("opened_albums.txt", (existingValues.Count > 0 ? "," : "") + headerName);
+                }
+
+            }
+            
             currentTab = tab.sViewer;
 
             if (switch_to == true)
@@ -539,16 +601,18 @@ namespace Wallchanger_v2
             // create All tab
             AddTabItem("Albums", null, 0); // special TabItem for opening albums
 
-            TabItem separator = new();
-            separator.IsEnabled = false;
-            separator.IsHitTestVisible = false;
-            separator.Content = new Separator
+            TabItem separator = new()
             {
-                Background = new SolidColorBrush(Colors.Transparent),
-                Opacity = 0,
-            };
+                IsEnabled = false,
+                IsHitTestVisible = false,
+                Content = new Separator
+                {
+                    Background = new SolidColorBrush(Colors.Transparent),
+                    Opacity = 0,
+                },
 
-            separator.Width = 10;
+                Width = 10
+            };
             separator.GotFocus += Separator_GotFocus;
             albumTabs.Items.Add(separator);
 
@@ -557,7 +621,20 @@ namespace Wallchanger_v2
 
 
             // go through each album and add the album to the TabSelector thingy
-            foreach (string album in albumsJson.Keys)
+            List<string> openedAlbums = new();
+
+            try
+            {
+                openedAlbums = File.ReadAllText("opened_albums.txt")
+                  .Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                  .ToList();
+            }
+            catch (FileNotFoundException ex)
+            {
+                File.CreateText("opened_albums.txt");
+            }
+            
+            foreach (string album in openedAlbums)
             {
                 List<String> imagePaths = albumsJson[album].ToList();
 
@@ -718,10 +795,12 @@ namespace Wallchanger_v2
 
         private Microsoft.Win32.OpenFileDialog ImagesFileDialog()
         {
-            Microsoft.Win32.OpenFileDialog openFileDlg = new();
-            openFileDlg.Title = "Add some images!";
-            openFileDlg.Filter = "All image files|*.png;*.jpg;*.bmp;*.gif|png files (*.png)|*.png|jpg files (*.jpg)|*.jpg|bmp files (*.bmp)|*.bmp|gif files (*.gif)|*.gif";
-            openFileDlg.Multiselect = true;
+            Microsoft.Win32.OpenFileDialog openFileDlg = new()
+            {
+                Title = "Add some images!",
+                Filter = "All image files|*.png;*.jpg;*.bmp;*.gif|png files (*.png)|*.png|jpg files (*.jpg)|*.jpg|bmp files (*.bmp)|*.bmp|gif files (*.gif)|*.gif",
+                Multiselect = true
+            };
 
             return openFileDlg;
         }
@@ -801,7 +880,7 @@ namespace Wallchanger_v2
 
         private void MultiselectCheckBox_Click(object sender, RoutedEventArgs e)
         {
-            if ((sender as CheckBox) is CheckBox)
+            if (sender is CheckBox)
             {
                 (sender as CheckBox).IsChecked = !(sender as CheckBox).IsChecked;
             }
@@ -822,7 +901,7 @@ namespace Wallchanger_v2
             albumTabs.SelectedIndex += 1;
         }
 
-        private void removeImageMenuItem_Click(object sender, RoutedEventArgs e, WrapPanel panel, WPButton btn)
+        private void removeImageMenuItem_Click(object sender, RoutedEventArgs e, WPButton btn)
         {
 
             // removes it from album, doesn't work in All
@@ -920,6 +999,8 @@ namespace Wallchanger_v2
             Dictionary<String, List<String>> albumsJson = GetJsonFile("albums.json");
 
             AddTabItem(albumName, albumsJson[albumName], 3, true);
+
+
         }
 
         private void RenameMenuItem_Click(object sender, RoutedEventArgs e, WPContainer tab)
@@ -937,10 +1018,21 @@ namespace Wallchanger_v2
         {
             // closes the tab if not "All"
 
-            if (tab.Header.ToString() != "All")
+            string header = tab.Header.ToString();
+
+            if (header != "All")
             {
                 albumTabs.Items.Remove(tab);
                 currentTab = (albumTabs.Items[2] as WPContainer).sViewer;
+
+
+                List<string> existingValues = File.ReadAllText("opened_albums.txt").Split(',').ToList();
+                if (existingValues.Remove(header))
+                {
+                    // Only update the file if the value was actually removed
+                    File.WriteAllText("opened_albums.txt", string.Join(",", existingValues));
+                }
+
             }
         }
 
@@ -974,10 +1066,7 @@ namespace Wallchanger_v2
             }
         }
 
-        private void AddImagesButton_Click(object sender, RoutedEventArgs e, string currentTab)
-        {
-            ImportImages(currentTab);
-        }
+        private void AddImagesButton_Click(object sender, RoutedEventArgs e, string currentTab) => ImportImages(currentTab);
 
         private void WPButton_Click(object sender, EventArgs e)
         {
@@ -1031,7 +1120,7 @@ namespace Wallchanger_v2
         {
             if (e.ChangedButton is MouseButton.Left)
             {
-                SystemParametersInfo(SPI_SETDESKWALLPAPER, 1, path, SPIF_UPDATEINIFILE);
+                _ = SystemParametersInfo(SPI_SETDESKWALLPAPER, 1, path, SPIF_UPDATEINIFILE);
             }
         }
 
@@ -1139,8 +1228,14 @@ namespace Wallchanger_v2
 
         private List<string> GetImagesFromAlbum(string album)
         {
-            Dictionary<String, List<String>> albumsJson = GetJsonFile(@"albums.json");
-            return albumsJson[album];
+            if (album != "All")
+            {
+                Dictionary<String, List<String>> albumsJson = GetJsonFile(@"albums.json");
+                return albumsJson[album];
+            }
+
+            // will return all
+            return GetImagesViaPath(($"{Directory.GetCurrentDirectory()}\\wallpapers"));
         }
     
 
@@ -1165,7 +1260,7 @@ namespace Wallchanger_v2
 
         private void setButton_Click(object sender, RoutedEventArgs e)
         {
-            SystemParametersInfo(SPI_SETDESKWALLPAPER, 1, selectedButton.Path, SPIF_UPDATEINIFILE);
+            _ = SystemParametersInfo(SPI_SETDESKWALLPAPER, 1, selectedButton.Path, SPIF_UPDATEINIFILE);
         }
 
         private void window_MouseDown(object sender, MouseButtonEventArgs e)
@@ -1202,7 +1297,7 @@ namespace Wallchanger_v2
         {
             string newAlbumName = NewAlbumName.Text;
 
-            if (newAlbumName.Length > 0 && newAlbumName.ToLower() != "all" && newAlbumName.ToLower() != "favorites" && newAlbumName.ToLower() != "albums")
+            if (newAlbumName.Length > 0 && newAlbumName.ToLower() != "all" && newAlbumName.ToLower() != "favorites" && newAlbumName.ToLower() != "albums" && !newAlbumName.Contains(","))
             {
                 // add to json as a new key,
 
@@ -1251,6 +1346,12 @@ namespace Wallchanger_v2
 
         private void window_Closing(object sender, CancelEventArgs e)
         {
+            string closeToTrayStr = GetSettingsFile("prefs.json")["close_to_tray"];
+
+            bool.TryParse(closeToTrayStr, out bool closeToTrayVal);
+
+            closed = !closeToTrayVal;
+
             if (!closed)
             {
                 e.Cancel = true;
@@ -1262,16 +1363,24 @@ namespace Wallchanger_v2
         private void OptionsPopup_Closed(object sender, EventArgs e)
         {
             MainBorder.Opacity = 1;
-
-            //SetTheme(ThemeSelectionCombo.Text);
         }
 
         private void CloseOptions_Click(object sender, RoutedEventArgs e)
         {
-            OptionsPopup.IsOpen = false;
+            // save the settings to prefs.json
 
-            // save the settings to config file
-            
+            Dictionary<string, string> settingsDict = new()
+            {
+                ["close_to_tray"] = closeToTrayCheckBox.IsChecked.ToString(),
+                ["check_for_updates"] = checkForUpdatesCheckBox.IsChecked.ToString(),
+                ["theme"] = themeComboBox.Text,
+                ["randomize_on_start"] = randomizeOnStartupCheckBox.IsChecked.ToString(),
+                ["randomize_from_album"] = randomizeFromComboBox.Text
+            };
+
+            SaveSettings("prefs.json", settingsDict);
+
+            OptionsPopup.IsOpen = false;
         }
 
         private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
@@ -1337,7 +1446,7 @@ namespace Wallchanger_v2
 
         private ComboBox createComboBoxWithItems(string[] items)
         {
-            ComboBox comboBox = new ComboBox();
+            ComboBox comboBox = new();
 
             foreach(string item in items)
             {
@@ -1349,9 +1458,12 @@ namespace Wallchanger_v2
 
         public StackPanel beginCreateNewSchedule(int row)
         {
-            StackPanel scheduleCreationStack = new() { Margin = new Thickness(5)};
-            scheduleCreationStack.Orientation = Orientation.Horizontal;
-            scheduleCreationStack.Background = Brushes.LightGray;
+            StackPanel scheduleCreationStack = new()
+            {
+                Margin = new Thickness(5),
+                Orientation = Orientation.Horizontal,
+                Background = Brushes.LightGray
+            };
             scheduleCreationStack.Margin = new Thickness(4);
 
             // create type label
@@ -1387,7 +1499,7 @@ namespace Wallchanger_v2
 
         private static bool IsTextNumeric(string str)
         {
-            System.Text.RegularExpressions.Regex reg = new System.Text.RegularExpressions.Regex("[^0-9]");
+            System.Text.RegularExpressions.Regex reg = new("[^0-9]");
             return reg.IsMatch(str);
 
         }
@@ -1405,8 +1517,10 @@ namespace Wallchanger_v2
             Label timeLabel = new() { Content = "At" }; // 4
             //TextBox timeInput = new() { MinWidth=40, MaxWidth=50, MaxHeight = 25, MaxLength = 10 }; // 5
 
-            DateTimeUpDown timePicker = new();
-            timePicker.Format = DateTimeFormat.ShortTime;
+            DateTimeUpDown timePicker = new()
+            {
+                Format = DateTimeFormat.ShortTime
+            };
 
             //timeInput.PreviewTextInput += NumericOnly;
             //ComboBox timeComboBox = createComboBoxWithItems(new string[]{ "AM", "PM" }); // 6
@@ -1535,23 +1649,21 @@ namespace Wallchanger_v2
                 string functionString = ((ComboBox)creationStack.Children[8]).Text;
 
 
-                double time;
-
-                if (double.TryParse(timeAsString, out time))
+                if (double.TryParse(timeAsString, out double time))
                 {
 
                     if (timeScaleString.ToLower() == "seconds")
                     {
-                        time = (time / 60.0);
+                        time /= 60.0;
                     }
                     else if (timeScaleString.ToLower() == "hours")
                     {
-                        time = time * 60.0;
+                        time *= 60.0;
                     }
 
                     if (time > 0)
                     {
-                        DispatcherTimer recurring_timer = new DispatcherTimer();
+                        DispatcherTimer recurring_timer = new();
                         recurring_timer.Tick += delegate (object sender, EventArgs e)
                         {
                             recurring_timer_Tick(sender, e, functionString, albumName);
@@ -1563,7 +1675,8 @@ namespace Wallchanger_v2
                     {
                         (sender as CheckBox).IsChecked = false;
                     }
-                } else
+                }
+                else
                 {
                     (sender as CheckBox).IsChecked = false;
                     return;
@@ -1574,7 +1687,7 @@ namespace Wallchanger_v2
 
             else if (currentMode.ToLower() == "set time")
             {
-                Timer _timer = new Timer();
+                Timer _timer = new();
 
                 Trace.WriteLine("SET TIME");
 
